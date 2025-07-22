@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8" />
+<title>EKO BLOK</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #f0f0f0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+  }
+  #container {
+    width: 320px;
+  }
+  form, #receipt {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+  form input, form button {
+    width: 100%;
+    margin: 8px 0;
+    padding: 10px;
+    font-size: 1em;
+  }
+  label {
+    font-weight: bold;
+  }
+  #receipt {
+    font-size: 18px;
+    line-height: 1.5;
+    color: #000;
+  }
+  #receipt h1 {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 0;
+  }
+  #eco-icon {
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 10px;
+  }
+  #items {
+    margin-top: 10px;
+  }
+  #qr-code {
+    text-align: center;
+    margin-top: 20px;
+  }
+  .summary {
+    font-weight: bold;
+    text-align: right;
+    margin-top: 10px;
+  }
+  @media print {
+    body * { visibility: hidden; }
+    #receipt, #receipt * {
+      visibility: visible;
+    }
+    #receipt {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 280px;
+      padding: 15px;
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="container">
+  <form id="itemForm">
+    <label>Položka</label>
+    <input type="text" id="itemName" required>
+    <label>Množstvo</label>
+    <input type="number" id="itemQty" value="1" min="1">
+    <label>Cena (€)</label>
+    <input type="number" id="itemPrice" step="0.01" required>
+    <label><input type="checkbox" id="itemGift"> Darček</label>
+    <button type="submit">Pridať položku</button>
+  </form>
+
+  <div id="receipt">
+    <div id="eco-icon">♻️</div>
+    <h1>EKO BLOK</h1>
+    <div>Dátum: <span id="date"></span></div>
+    <div>Čas: <span id="time"></span></div>
+    <hr>
+    <div id="items"></div>
+    <hr>
+    <div class="summary">DPH (20%): <span id="vat">0.00</span> €</div>
+    <div class="summary">Spolu: <span id="total">0.00</span> €</div>
+    <div id="qr-code"></div>
+  </div>
+
+  <button onclick="window.print()">Tlačiť blok</button>
+  <button onclick="exportPDF()">Exportovať do PDF</button>
+</div>
+
+<script>
+  let total = 0;
+  let vat = 0;
+  let qrText = '';
+
+  function updateDateTime() {
+    const now = new Date();
+    document.getElementById("date").textContent = now.toLocaleDateString();
+    document.getElementById("time").textContent = now.toLocaleTimeString();
+  }
+
+  updateDateTime();
+
+  document.getElementById("itemForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = itemName.value.trim();
+    const qty = +itemQty.value;
+    const price = +itemPrice.value;
+    const gift = itemGift.checked;
+
+    const sum = gift ? 0 : qty * price;
+    const dph = gift ? 0 : sum * 0.2;
+
+    total += sum;
+    vat += dph;
+
+    document.getElementById("items").innerHTML += `${qty}× ${name}${gift ? " (darček)" : ""} .... ${sum.toFixed(2)} €<br>`;
+    document.getElementById("total").textContent = total.toFixed(2);
+    document.getElementById("vat").textContent = vat.toFixed(2);
+
+    qrText += `${qty}x ${name}${gift ? "(darček)" : ""} = ${sum.toFixed(2)} €\n`;
+
+    QRCode.toDataURL(qrText, { width: 100 }, (err, url) => {
+      document.getElementById("qr-code").innerHTML = `<img src="${url}" alt="QR kód">`;
+    });
+
+    itemForm.reset();
+  });
+
+  async function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.html(document.querySelector("#receipt"), {
+      callback: function (pdf) {
+        pdf.save("eko-blok.pdf");
+      },
+      margin: [10, 10, 10, 10],
+      autoPaging: 'text',
+      x: 10,
+      y: 10,
+      width: 170
+    });
+  }
+</script>
+
+</body>
+</html>
